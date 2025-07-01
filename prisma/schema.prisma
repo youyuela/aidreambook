@@ -1,0 +1,367 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// 数据库配置 - 支持SQLite(开发)和PostgreSQL(生产)
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// 用户认证相关表
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// 用户系统
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  username      String?   @unique
+  bio           String?
+
+  // 用户偏好设置
+  language      String    @default("zh")
+  theme         String    @default("dark")
+  timezone      String    @default("Asia/Shanghai")
+  notifications Boolean   @default(true)
+
+  // 订阅信息
+  subscriptionTier    SubscriptionTier @default(FREE)
+  subscriptionStatus  String?
+  stripeCustomerId    String?          @unique
+  stripeSubscriptionId String?         @unique
+  subscriptionEndDate DateTime?
+
+  // 使用配额
+  monthlyQuota        Int              @default(10)
+  usedQuota           Int              @default(0)
+  quotaResetDate      DateTime?
+
+  // 专家认证
+  isExpert            Boolean          @default(false)
+  expertVerifiedAt    DateTime?
+  expertBadge         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // 关系
+  accounts         Account[]
+  sessions         Session[]
+  dreams           Dream[]
+  collections      Collection[]
+  comments         Comment[]
+  likes            Like[]
+  subscriptions    Subscription[]
+  expertApplications ExpertApplication[]
+  dreamJournals    DreamJournal[]
+
+  @@map("users")
+}
+
+// 订阅等级
+enum SubscriptionTier {
+  FREE
+  BASIC
+  PRO
+  EXPERT
+}
+
+// 梦境记录
+model Dream {
+  id          String   @id @default(cuid())
+  userId      String
+  title       String
+  content     String
+  mood        String?
+  style       String?
+  language    String   @default("zh")
+
+  // AI生成内容
+  analysis    Json?    // 梦境解析结果
+  novel       Json?    // 生成的小说
+  imageUrl    String?
+  videoUrl    String?
+  imagePrompt String?
+  videoPrompt String?
+
+  // 生成状态
+  status      GenerationStatus @default(PENDING)
+  progress    Int              @default(0)
+
+  // 社区相关
+  isPublic    Boolean          @default(false)
+  isPublished Boolean          @default(false)
+  publishedAt DateTime?
+  views       Int              @default(0)
+
+  // AI模型信息
+  aiModel     String?
+  aiVersion   String?
+  generation  String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // 关系
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comments    Comment[]
+  likes       Like[]
+  collections CollectionDream[]
+  tags        DreamTag[]
+
+  @@map("dreams")
+}
+
+enum GenerationStatus {
+  PENDING
+  ANALYZING
+  GENERATING_NOVEL
+  GENERATING_IMAGE
+  GENERATING_VIDEO
+  COMPLETED
+  FAILED
+}
+
+// 标签系统
+model Tag {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  color       String?
+  category    String?
+  usageCount  Int      @default(0)
+
+  createdAt   DateTime @default(now())
+  dreams      DreamTag[]
+
+  @@map("tags")
+}
+
+model DreamTag {
+  dreamId String
+  tagId   String
+
+  dream   Dream @relation(fields: [dreamId], references: [id], onDelete: Cascade)
+  tag     Tag   @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([dreamId, tagId])
+  @@map("dream_tags")
+}
+
+// 收藏系统
+model Collection {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  description String?
+  isPublic    Boolean  @default(false)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dreams      CollectionDream[]
+
+  @@map("collections")
+}
+
+model CollectionDream {
+  collectionId String
+  dreamId      String
+  addedAt      DateTime @default(now())
+
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  dream        Dream      @relation(fields: [dreamId], references: [id], onDelete: Cascade)
+
+  @@id([collectionId, dreamId])
+  @@map("collection_dreams")
+}
+
+// 评论系统
+model Comment {
+  id        String   @id @default(cuid())
+  userId    String
+  dreamId   String
+  content   String
+  parentId  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dream     Dream     @relation(fields: [dreamId], references: [id], onDelete: Cascade)
+  parent    Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies   Comment[] @relation("CommentReplies")
+
+  @@map("comments")
+}
+
+// 点赞系统
+model Like {
+  id      String   @id @default(cuid())
+  userId  String
+  dreamId String
+
+  createdAt DateTime @default(now())
+
+  user    User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dream   Dream @relation(fields: [dreamId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dreamId])
+  @@map("likes")
+}
+
+// 订阅系统
+model Subscription {
+  id                String   @id @default(cuid())
+  userId            String
+  tier              SubscriptionTier
+  status            String
+  stripeSubscriptionId String? @unique
+  stripePriceId     String?
+  stripeCustomerId  String?
+
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  cancelAtPeriodEnd  Boolean  @default(false)
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
+}
+
+// 专家认证申请
+model ExpertApplication {
+  id          String   @id @default(cuid())
+  userId      String
+  reason      String
+  credentials String?
+  portfolio   String?
+  status      String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  reviewedBy  String?
+  reviewedAt  DateTime?
+  reviewNotes String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("expert_applications")
+}
+
+// 梦境日记
+model DreamJournal {
+  id          String   @id @default(cuid())
+  userId      String
+  date        DateTime
+  mood        String?
+  sleepQuality Int?    // 1-10
+  lucidDream   Boolean  @default(false)
+  nightmare    Boolean  @default(false)
+  recurring    Boolean  @default(false)
+  symbols      String? // 出现的符号(JSON字符串)
+  emotions     String? // 情感(JSON字符串)
+  themes       String? // 主题(JSON字符串)
+  notes        String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@map("dream_journals")
+}
+
+// 创作比赛
+model Contest {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  theme       String?
+  rules       String
+  prizes      Json?
+
+  startDate   DateTime
+  endDate     DateTime
+  judgeStart  DateTime
+  judgeEnd    DateTime
+
+  status      String   @default("UPCOMING") // UPCOMING, ACTIVE, JUDGING, COMPLETED
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  entries     ContestEntry[]
+
+  @@map("contests")
+}
+
+model ContestEntry {
+  id        String   @id @default(cuid())
+  contestId String
+  dreamId   String
+  userId    String
+
+  submittedAt DateTime @default(now())
+
+  contest   Contest @relation(fields: [contestId], references: [id], onDelete: Cascade)
+
+  @@unique([contestId, dreamId])
+  @@unique([contestId, userId])
+  @@map("contest_entries")
+}
+
+// 系统设置
+model SystemSettings {
+  id    String @id @default(cuid())
+  key   String @unique
+  value Json
+
+  updatedAt DateTime @updatedAt
+
+  @@map("system_settings")
+}
