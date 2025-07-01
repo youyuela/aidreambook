@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, GenerationStatus } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
@@ -112,7 +112,7 @@ async function main() {
       isPublished: true,
       publishedAt: new Date(),
       views: 156,
-      status: 'COMPLETED',
+      status: GenerationStatus.COMPLETED,
       progress: 100,
       imageUrl: 'https://images.unsplash.com/photo-1446776877081-d282a0f896e2?w=1024&h=1024&fit=crop',
       userId: demoUser.id,
@@ -157,7 +157,7 @@ async function main() {
       isPublished: true,
       publishedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
       views: 89,
-      status: 'COMPLETED',
+      status: GenerationStatus.COMPLETED,
       progress: 100,
       imageUrl: 'https://images.unsplash.com/photo-1518837695005-2083093c7d1a?w=1024&h=1024&fit=crop',
       userId: expertUser.id,
@@ -202,7 +202,7 @@ async function main() {
       isPublished: true,
       publishedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
       views: 234,
-      status: 'COMPLETED',
+      status: GenerationStatus.COMPLETED,
       progress: 100,
       imageUrl: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=1024&h=1024&fit=crop',
       userId: demoUser.id,

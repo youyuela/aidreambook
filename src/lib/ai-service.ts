@@ -239,7 +239,7 @@ export async function generateImageWithAI(
       style: finalConfig.style as 'vivid' | 'natural' || 'vivid',
     });
 
-    const imageUrl = response.data[0]?.url;
+    const imageUrl = response.data?.[0]?.url;
 
     if (!imageUrl) {
       throw new Error('No image URL returned from OpenAI');
@@ -389,7 +389,7 @@ export async function getUserQuotaStatus(userId: string) {
 export async function batchGenerate(
   userId: string,
   dreams: DreamInput[]
-): Promise<{ success: boolean; results?: any[]; error?: string }> {
+): Promise<{ success: boolean; results?: Array<Record<string, unknown>>; error?: string }> {
   // 检查用户权限
   const user = await prisma.user.findUnique({
     where: { id: userId },

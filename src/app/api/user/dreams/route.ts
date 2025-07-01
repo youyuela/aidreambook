@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { GenerationStatus } from "@prisma/client";
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,14 +20,14 @@ export async function GET(request: NextRequest) {
 
     const where: {
       userId: string;
-      status?: string;
+      status?: GenerationStatus;
       isPublic?: boolean;
     } = {
       userId: session.user.id,
     };
 
     if (status) {
-      where.status = status;
+      where.status = status as GenerationStatus;
     }
 
     if (isPublic !== null) {

@@ -47,6 +47,9 @@ export interface GeneratedImage {
     seed?: number;
     steps?: number;
     cfg_scale?: number;
+    model?: string;
+    quality?: string;
+    style?: string;
   };
 }
 

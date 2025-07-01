@@ -7,10 +7,14 @@ import { prisma } from '@/lib/prisma';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.text();
-    const signature = headers().get('stripe-signature');
+    const signature = request.headers.get('stripe-signature');
 
     if (!signature) {
       return NextResponse.json({ error: 'No signature' }, { status: 400 });
+    }
+
+    if (!stripe) {
+      return NextResponse.json({ error: 'Stripe not configured' }, { status: 500 });
     }
 
     let event: Stripe.Event;
@@ -68,6 +72,7 @@ export async function POST(request: NextRequest) {
 
 async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
   const userId = subscription.metadata.userId;
+  if (!stripe) return;
 
   if (!userId) {
     console.error('No userId in subscription metadata');
@@ -93,11 +98,11 @@ async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
       subscriptionStatus: subscription.status,
       stripeSubscriptionId: subscription.id,
       stripeCustomerId: subscription.customer as string,
-      subscriptionEndDate: new Date(subscription.current_period_end * 1000),
+      subscriptionEndDate: new Date((subscription as any).current_period_end * 1000),
       monthlyQuota: SUBSCRIPTION_PLANS[tier].quota === -1 ? 999999 : SUBSCRIPTION_PLANS[tier].quota,
       // 重置已使用配额（新计费周期开始）
       usedQuota: subscription.status === 'active' ? 0 : undefined,
-      quotaResetDate: new Date(subscription.current_period_end * 1000),
+      quotaResetDate: new Date((subscription as any).current_period_end * 1000),
     },
   });
 
@@ -108,9 +113,9 @@ async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
     },
     update: {
       status: subscription.status,
-      currentPeriodStart: new Date(subscription.current_period_start * 1000),
-      currentPeriodEnd: new Date(subscription.current_period_end * 1000),
-      cancelAtPeriodEnd: subscription.cancel_at_period_end,
+      currentPeriodStart: new Date((subscription as any).current_period_start * 1000),
+      currentPeriodEnd: new Date((subscription as any).current_period_end * 1000),
+      cancelAtPeriodEnd: (subscription as any).cancel_at_period_end,
     },
     create: {
       userId,
@@ -119,9 +124,9 @@ async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
       stripeSubscriptionId: subscription.id,
       stripePriceId: priceId,
       stripeCustomerId: subscription.customer as string,
-      currentPeriodStart: new Date(subscription.current_period_start * 1000),
-      currentPeriodEnd: new Date(subscription.current_period_end * 1000),
-      cancelAtPeriodEnd: subscription.cancel_at_period_end,
+      currentPeriodStart: new Date((subscription as any).current_period_start * 1000),
+      currentPeriodEnd: new Date((subscription as any).current_period_end * 1000),
+      cancelAtPeriodEnd: (subscription as any).cancel_at_period_end,
     },
   });
 
@@ -130,6 +135,7 @@ async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
 
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
   const userId = subscription.metadata.userId;
+  if (!stripe) return;
 
   if (!userId) {
     console.error('No userId in subscription metadata');
@@ -164,8 +170,9 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
 }
 
 async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
-  const subscriptionId = invoice.subscription as string;
+  const subscriptionId = (invoice as any).subscription as string;
 
+  if (!stripe) return;
   if (!subscriptionId) return;
 
   const subscription = await stripe.subscriptions.retrieve(subscriptionId);
@@ -188,7 +195,7 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
       data: {
         usedQuota: 0,
         monthlyQuota: quota,
-        quotaResetDate: new Date(subscription.current_period_end * 1000),
+        quotaResetDate: new Date((subscription as any).current_period_end * 1000),
       },
     });
   }
@@ -197,7 +204,8 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
 }
 
 async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
-  const subscriptionId = invoice.subscription as string;
+  const subscriptionId = (invoice as any).subscription as string;
+  if (!stripe) return;
 
   if (!subscriptionId) return;
 

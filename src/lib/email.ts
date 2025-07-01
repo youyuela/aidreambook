@@ -288,7 +288,7 @@ export const emailService = {
 
   // 检查邮件服务是否可用
   isEmailServiceAvailable: (): boolean => {
-    return hasValidEmailConfig;
+    return !!hasValidEmailConfig;
   }
 };
 

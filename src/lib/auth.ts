@@ -4,10 +4,11 @@ import GoogleProvider from "next-auth/providers/google";
 import GitHubProvider from "next-auth/providers/github";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "./prisma";
+import { SubscriptionTier } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma) as any,
+  adapter: PrismaAdapter(prisma),
   providers: [
     ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET ? [
       GoogleProvider({
@@ -61,7 +62,6 @@ export const authOptions: NextAuthOptions = {
   },
   pages: {
     signIn: "/auth/signin",
-    signUp: "/auth/signup",
     error: "/auth/error",
   },
   callbacks: {
@@ -96,10 +96,10 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       if (token) {
         session.user.id = token.id as string;
-        session.user.subscriptionTier = token.subscriptionTier as any;
+        session.user.subscriptionTier = token.subscriptionTier as SubscriptionTier;
         session.user.subscriptionStatus = token.subscriptionStatus as string;
         session.user.isExpert = token.isExpert as boolean;
-        session.user.quota = token.quota as any;
+        session.user.quota = token.quota as { monthly: number; used: number };
       }
       return session;
     },

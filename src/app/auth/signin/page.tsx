@@ -1,6 +1,5 @@
 "use client";
-
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { signIn, getProviders } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,13 +10,13 @@ import { Separator } from "@/components/ui/separator";
 import { AlertCircle, LogIn, Mail, Github, Chrome, Brain, Sparkles } from "lucide-react";
 import Link from "next/link";
 
-export default function SignIn() {
+function SignInForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
   const error = searchParams.get("error");
-
   const [email, setEmail] = useState("");
+
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [signInMethod, setSignInMethod] = useState<string | null>(null);
@@ -253,5 +252,13 @@ export default function SignIn() {
         </Card>
       </div>
     </div>
+  );
+}
+
+export default function SignIn() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <SignInForm />
+    </Suspense>
   );
 }

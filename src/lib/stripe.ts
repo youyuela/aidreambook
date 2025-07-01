@@ -2,14 +2,10 @@ import Stripe from 'stripe';
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 
-if (!stripeSecretKey) {
-  throw new Error('STRIPE_SECRET_KEY is not defined in environment variables');
-}
-
-export const stripe = new Stripe(stripeSecretKey, {
-  apiVersion: '2024-12-18.acacia',
+export const stripe = stripeSecretKey ? new Stripe(stripeSecretKey, {
+  apiVersion: '2025-05-28.basil',
   typescript: true,
-});
+}) : null;
 
 // 订阅计划配置
 export const SUBSCRIPTION_PLANS = {
@@ -81,6 +77,9 @@ export type SubscriptionTier = keyof typeof SUBSCRIPTION_PLANS;
 
 // 创建 Stripe 客户
 export async function createStripeCustomer(email: string, name?: string) {
+  if (!stripe) {
+    throw new Error('Stripe is not configured');
+  }
   const customer = await stripe.customers.create({
     email,
     name,
@@ -97,6 +96,9 @@ export async function createSubscription(
   priceId: string,
   userId: string
 ) {
+  if (!stripe) {
+    throw new Error('Stripe is not configured');
+  }
   const subscription = await stripe.subscriptions.create({
     customer: customerId,
     items: [{ price: priceId }],
@@ -113,6 +115,9 @@ export async function createSubscription(
 
 // 创建计费门户会话
 export async function createBillingPortalSession(customerId: string, returnUrl: string) {
+  if (!stripe) {
+    throw new Error('Stripe is not configured');
+  }
   const session = await stripe.billingPortal.sessions.create({
     customer: customerId,
     return_url: returnUrl,
@@ -122,12 +127,15 @@ export async function createBillingPortalSession(customerId: string, returnUrl: 
 
 // 创建结账会话
 export async function createCheckoutSession(
-  customerId: string,
   priceId: string,
-  userId: string,
+  customerId: string,
   successUrl: string,
-  cancelUrl: string
+  cancelUrl: string,
+  userId: string
 ) {
+  if (!stripe) {
+    throw new Error('Stripe is not configured');
+  }
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
     billing_address_collection: 'auto',
@@ -150,6 +158,9 @@ export async function createCheckoutSession(
 
 // 取消订阅
 export async function cancelSubscription(subscriptionId: string) {
+  if (!stripe) {
+    throw new Error('Stripe is not configured');
+  }
   const subscription = await stripe.subscriptions.update(subscriptionId, {
     cancel_at_period_end: true,
   });
@@ -158,12 +169,18 @@ export async function cancelSubscription(subscriptionId: string) {
 
 // 立即取消订阅
 export async function cancelSubscriptionImmediately(subscriptionId: string) {
+  if (!stripe) {
+    throw new Error('Stripe is not configured');
+  }
   const subscription = await stripe.subscriptions.cancel(subscriptionId);
   return subscription;
 }
 
 // 恢复订阅
 export async function resumeSubscription(subscriptionId: string) {
+  if (!stripe) {
+    throw new Error('Stripe is not configured');
+  }
   const subscription = await stripe.subscriptions.update(subscriptionId, {
     cancel_at_period_end: false,
   });
